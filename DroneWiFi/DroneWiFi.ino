@@ -3,51 +3,48 @@
 #include <WiFiUdp.h>
 #include <Servo.h>
 
-char ssid[] = "Westcott";      // your network SSID (name)
-char pass[] = "5037305828";   // your network password
-int keyIndex = 0;                 // your network key Index number (needed only for WEP)
-
-int status = WL_IDLE_STATUS;
-
-Servo aServo;
-Servo eServo;
-
-unsigned int localPort = 9446;      // local port to listen on
-
-char packetBuffer[255]; //buffer to hold incoming packet
-char  ReplyBuffer[] = "acknowledged";       // a string to send back
+Servo aileron;
+Servo elevator;
 
 WiFiUDP Udp;
 
+char ssid[] = "WestNet";
+char pass[] = "";
+
+int status = WL_IDLE_STATUS;
+
+unsigned int localPort = 9446;
+
+char packetBuffer[255];
+char replyBuffer[] = "";
+
 void setup() {
-  //Initialize serial and wait for port to open:
   Serial.begin(9600);
 
-  aServo.attach(2);
-  eServo.attach(3);
+  aileron.attach(2);
+  elevator.attach(3);
 
-  // check for the presence of the shield:
   if (WiFi.status() == WL_NO_SHIELD) {
     Serial.println("WiFi shield not present");
-    // don't continue:
     while (true);
   }
 
   String fv = WiFi.firmwareVersion();
-  if ( fv != "1.1.0" )
+  if ( fv != "1.1.0" ){
     Serial.println("Please upgrade the firmware");
+  }
 
   // attempt to connect to Wifi network:
   while ( status != WL_CONNECTED) {
     Serial.print("Attempting to connect to SSID: ");
     Serial.println(ssid);
-    // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
+    
+    //status = WiFi.begin(ssid, pass);
     status = WiFi.begin(ssid, pass);
-
-    // wait 10 seconds for connection:
-    delay(1000);
+    
+    delay(2000); // wait for connection
   }
-  // you're connected now, so print out the status:
+  
   printWifiStatus();
 
   Udp.begin(9446);
@@ -55,10 +52,8 @@ void setup() {
   pinMode(13, OUTPUT);
 }
 
-
 void loop() {
   
-
   int packetSize = Udp.parsePacket();
   if (packetSize) {
     Serial.print("Received packet of size ");
@@ -80,37 +75,37 @@ void loop() {
     String data = String(packetBuffer);
 
     int firstCommaIndex = data.indexOf(',');
-    int firstVal = data.substring(0, firstCommaIndex).toInt();
+    int aileronVal = data.substring(0, firstCommaIndex).toInt();
 
     int secondCommaIndex = data.indexOf(',', firstCommaIndex + 1);
-    int secondVal = data.substring(firstCommaIndex + 1, secondCommaIndex).toInt();
+    int elevatorVal = data.substring(firstCommaIndex + 1, secondCommaIndex).toInt();
 
-    Serial.println("Aileron: " + String(firstVal));
-    Serial.println("Elevator: " + String(secondVal));
+    Serial.println("Aileron: " + String(aileronVal));
+    Serial.println("Elevator: " + String(elevatorVal));
     Serial.println();
 
-    aServo.write(firstVal);
-    eServo.write(secondVal);
+    aileron.write(aileronVal);
+    elevator.write(elevatorVal);
     
     // send a reply, to the IP address and port that sent us the packet we received
+    data.toCharArray(replyBuffer,data.length);
     Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
-    Udp.write(ReplyBuffer);
+    Udp.write(replyBuffer);
     Udp.endPacket();
   }
 }
 
-
 void printWifiStatus() {
-  // print the SSID of the network you're attached to:
+  // Print the SSID of the network:
   Serial.print("SSID: ");
   Serial.println(WiFi.SSID());
 
-  // print your WiFi shield's IP address:
+  // Print IP address:
   IPAddress ip = WiFi.localIP();
   Serial.print("IP Address: ");
   Serial.println(ip);
 
-  // print the received signal strength:
+  // Print the received signal strength:
   long rssi = WiFi.RSSI();
   Serial.print("signal strength (RSSI):");
   Serial.print(rssi);
